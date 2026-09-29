@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/ibm-plex-sans/index.css';
+@import '@fontsource/ibm-plex-mono/400.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+
+/*
+ * Scene: a bid specialist at a desk in cool morning office light, triaging the
+ * daily drop on a large monitor. Pure white canvas, cool ink, and a single ochre
+ * (seed hue 77) reserved for urgency, selection and focus.
+ */
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', monospace;
+
+  --color-canvas: oklch(1 0 0);
+  --color-panel: oklch(0.978 0.004 255);
+  --color-hover: oklch(0.967 0.006 255);
+  --color-line: oklch(0.918 0.006 255);
+  --color-line-strong: oklch(0.86 0.008 255);
+
+  --color-ink: oklch(0.24 0.016 258);
+  --color-ink-2: oklch(0.42 0.016 258);
+  --color-ink-3: oklch(0.53 0.013 258);
+
+  --color-ochre: oklch(0.764 0.12 77.1);
+  --color-ochre-strong: oklch(0.6 0.12 70);
+  --color-ochre-soft: oklch(0.965 0.035 84);
+  --color-ochre-ink: oklch(0.45 0.095 62);
+
+  --color-urgent: oklch(0.54 0.19 28);
+  --color-urgent-soft: oklch(0.962 0.028 28);
+
+  --color-positive: oklch(0.5 0.11 155);
+  --color-positive-soft: oklch(0.962 0.03 155);
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+
+  --z-sticky: 10;
+  --z-dropdown: 20;
+  --z-backdrop: 30;
+  --z-drawer: 40;
+  --z-toast: 50;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-canvas text-ink font-sans text-sm;
+    font-feature-settings: 'ss02';
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-ochre-strong);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+  ::selection {
+    background: var(--color-ochre-soft);
+  }
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility mono {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  letter-spacing: -0.01em;
+}
+
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(400%);
+  }
+}
+
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@keyframes skeleton {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
