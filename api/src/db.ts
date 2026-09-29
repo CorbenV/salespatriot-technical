@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3';
 import fs from 'node:fs';
 import path from 'node:path';
+import { CATALOG_SCHEMA } from './catalog.js';
 import { FSC_NAMES } from './data/fsc.js';
 import type { ApprovedSource, BatchQuoteLine, IndexLine } from './dibbs/parse.js';
 import { fscOf } from './dibbs/parse.js';
@@ -96,7 +97,15 @@ export function openDb(file: string): DB {
       .replace(/[^a-z0-9]/gi, '')
       .toLowerCase(),
   );
+  // Lowercase words separated by single spaces; used to match catalog keywords regardless of punctuation.
+  db.function('words', { deterministic: true }, (s: unknown) =>
+    String(s ?? '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim(),
+  );
   db.exec(SCHEMA);
+  db.exec(CATALOG_SCHEMA);
   const insertFsc = db.prepare('INSERT OR REPLACE INTO fsc_names (code, name) VALUES (?, ?)');
   db.transaction(() => {
     for (const [code, name] of Object.entries(FSC_NAMES)) insertFsc.run(code, name);

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { matchReasons } from './catalog.js';
 import type { DB } from './db.js';
 import { DIBBS, SET_ASIDES, SOL_TYPES } from './dibbs/codes.js';
 import { formatNsn, formatSolicitation } from './dibbs/parse.js';
@@ -35,6 +36,10 @@ export const listQuerySchema = z.object({
     .enum(['true', 'false'])
     .optional()
     .transform((v) => v === 'true'),
+  mine: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((v) => v === 'true'),
   sort: z.enum(['returnBy', 'posted', 'qty', 'solicitation', 'nomenclature']).default('posted'),
   dir: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().min(1).default(1),
@@ -42,7 +47,7 @@ export const listQuerySchema = z.object({
 });
 export type ListQuery = z.infer<typeof listQuerySchema>;
 
-type FacetKey = 'status' | 'fsc' | 'setAside' | 'solType';
+type FacetKey = 'status' | 'fsc' | 'setAside' | 'solType' | 'mine';
 
 const SORT_SQL: Record<ListQuery['sort'], { col: string; dir: 'ASC' | 'DESC' }> = {
   returnBy: { col: 'return_by', dir: 'ASC' },
@@ -193,6 +198,7 @@ function buildWhere(db: DB, q: ListQuery, today: string, omit?: FacetKey) {
   if (q.sources === 'with') where.push('source_count > 0');
   if (q.sources === 'without') where.push('source_count = 0');
   if (q.amended) where.push('prev_return_by IS NOT NULL');
+  if (omit !== 'mine' && q.mine) where.push('solicitation IN (SELECT solicitation FROM catalog_matches)');
 
   return { sql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
 }
@@ -274,8 +280,12 @@ export function listSolicitations(db: DB, q: ListQuery) {
     )
     .all({ ...params, limit: q.pageSize, offset: (q.page - 1) * q.pageSize }) as SolRow[];
 
+  const reasons = matchReasons(
+    db,
+    rows.map((r) => r.solicitation),
+  );
   return {
-    items: rows.map((r) => toItem(r, today)),
+    items: rows.map((r) => ({ ...toItem(r, today), matches: reasons.get(r.solicitation) ?? [] })),
     total,
     page: q.page,
     pageSize: q.pageSize,
@@ -311,7 +321,21 @@ function facets(db: DB, q: ListQuery, today: string) {
     ]),
   );
 
+  const mine = (() => {
+    const { sql, params } = buildWhere(db, q, today, 'mine');
+    const cond = sql ? `${sql} AND` : 'WHERE';
+    return (
+      db
+        .prepare(
+          `SELECT COUNT(*) AS n FROM solicitations ${cond} solicitation IN (SELECT solicitation FROM catalog_matches)`,
+        )
+        .get(params) as { n: number }
+    ).n;
+  })();
+  const catalogSize = (db.prepare('SELECT COUNT(*) AS n FROM catalog').get() as { n: number }).n;
+
   return {
+    mine: { count: mine, catalogSize },
     status: {
       open: statusRows.open ?? 0,
       closing: statusRows.closing ?? 0,
@@ -375,6 +399,7 @@ export function getSolicitation(db: DB, sol: string) {
 
   return {
     ...toItem(row, todayEt()),
+    matches: matchReasons(db, [row.solicitation]).get(row.solicitation) ?? [],
     otherNsnRfqs,
     lines: lines.map((l) => ({
       lineNo: l.line_no,

@@ -1,5 +1,6 @@
 import AdmZip from 'adm-zip';
 import type { FastifyBaseLogger } from 'fastify';
+import { rebuildCatalogMatches } from './catalog.js';
 import { ingestDay, ingestedPostDates, rebuildSolicitations, type DB } from './db.js';
 import { DIBBS } from './dibbs/codes.js';
 import { DibbsClient, DibbsUnavailableError } from './dibbs/client.js';
@@ -71,6 +72,7 @@ export class Ingester {
       this.log.info({ file: day.yymmdd, lines: day.lines.length, bq: !!day.bq }, 'ingest: day loaded');
     }
     const total = rebuildSolicitations(this.db);
+    rebuildCatalogMatches(this.db);
     this.log.info({ added, solicitations: total }, 'ingest: read model rebuilt');
     return added;
   }
